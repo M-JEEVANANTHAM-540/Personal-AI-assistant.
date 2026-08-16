@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 from google import genai
 
@@ -17,6 +18,33 @@ client = genai.Client(
     api_key=api_key,
     http_options={"api_version": "v1"}
 )
+
+# ============================================================
+# JARVIS TOOLS
+# ============================================================
+
+from datetime import datetime
+
+
+def get_current_time():
+    """Return the current system time."""
+    return datetime.now().strftime("%I:%M %p")
+
+
+get_current_time_tool = {
+    "type": "function",
+    "name": "get_current_time",
+    "description": "Get the current date and time from the user's computer.",
+    "parameters": {
+        "type": "object",
+        "properties": {}
+    }
+}
+
+# Maps Gemini's function name to the actual Python function.
+available_functions = {
+    "get_current_time": get_current_time
+}
 
 # ============================================================
 # JARVIS SYSTEM INSTRUCTIONS
@@ -176,7 +204,8 @@ while True:
             interaction = client.interactions.create(
                 model="gemini-3.6-flash",
                 input=user_input,
-                system_instruction=JARVIS_INSTRUCTIONS
+                system_instruction=JARVIS_INSTRUCTIONS,
+                tools=[get_current_time_tool]
             )
 
         else:
@@ -186,10 +215,64 @@ while True:
                 model="gemini-3.6-flash",
                 input=user_input,
                 previous_interaction_id=previous_interaction_id,
-                system_instruction=JARVIS_INSTRUCTIONS
+                system_instruction=JARVIS_INSTRUCTIONS,
+                tools=[get_current_time_tool]
             )
 
-        # Print response
+        # ====================================================
+        # HANDLE TOOL CALLS
+        # ====================================================
+
+        while True:
+
+            function_results = []
+
+            for step in interaction.steps:
+
+                if step.type == "function_call":
+
+                    function_name = step.name
+                    function_arguments = step.arguments
+
+                    print(
+                        f"\nJARVIS: Executing {function_name}..."
+                    )
+
+                    if function_name not in available_functions:
+                        raise ValueError(
+                            f"Unknown function requested: {function_name}"
+                        )
+
+                    function_to_call = available_functions[function_name]
+
+                    result = function_to_call(**function_arguments)
+
+                    function_results.append({
+                        "type": "function_result",
+                        "name": function_name,
+                        "call_id": step.id,
+                        "result": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(result)
+                            }
+                        ]
+                    })
+
+            # If Gemini did not request a tool, we have the final response.
+            if not function_results:
+                break
+
+            # Send the tool result back to Gemini.
+            interaction = client.interactions.create(
+                model="gemini-3.6-flash",
+                input=function_results,
+                previous_interaction_id=interaction.id,
+                system_instruction=JARVIS_INSTRUCTIONS,
+                tools=[get_current_time_tool]
+            )
+
+        # Print final response
         print(f"\nJARVIS: {interaction.output_text}\n")
 
         # Save the latest interaction ID
