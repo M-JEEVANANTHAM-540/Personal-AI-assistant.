@@ -3,6 +3,8 @@ import json
 import subprocess
 from dotenv import load_dotenv
 from google import genai
+import psutil
+import platform
 
 # Load environment variables from .env
 load_dotenv()
@@ -30,7 +32,28 @@ from datetime import datetime
 def get_current_time():
     """Return the current system time."""
     return datetime.now().strftime("%I:%M %p")
+def get_system_info():
+    """Return basic information about the user's computer."""
 
+    memory = psutil.virtual_memory()
+
+    return {
+        "operating_system": platform.system(),
+        "os_version": platform.version(),
+        "cpu": platform.processor(),
+        "cpu_count": psutil.cpu_count(),
+        "ram_gb": round(memory.total / (1024 ** 3), 2),
+        "python_version": platform.python_version()
+    }
+get_system_info_tool = {
+    "type": "function",
+    "name": "get_system_info",
+    "description": "Get basic hardware, operating system, and Python information from the user's computer.",
+    "parameters": {
+        "type": "object",
+        "properties": {}
+    }
+}
 
 get_current_time_tool = {
     "type": "function",
@@ -99,7 +122,8 @@ open_application_tool = {
 
 available_functions = {
     "get_current_time": get_current_time,
-    "open_application": open_application
+    "open_application": open_application,
+    "get_system_info": get_system_info
 }
 
 
@@ -109,7 +133,8 @@ available_functions = {
 
 available_tools = [
     get_current_time_tool,
-    open_application_tool
+    open_application_tool,
+    get_system_info_tool
 ]
 
 
