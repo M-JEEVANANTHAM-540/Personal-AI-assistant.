@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 from dotenv import load_dotenv
 from google import genai
 
@@ -41,10 +42,76 @@ get_current_time_tool = {
     }
 }
 
-# Maps Gemini's function name to the actual Python function.
-available_functions = {
-    "get_current_time": get_current_time
+
+# ============================================================
+# APPLICATION CONTROL TOOL
+# ============================================================
+
+APPROVED_APPLICATIONS = {
+    "notepad": "notepad.exe",
+    "calculator": "calc.exe",
+    "paint": "mspaint.exe"
 }
+
+
+def open_application(app_name):
+    """Open an approved application on the user's Windows computer."""
+
+    app_name = app_name.lower().strip()
+
+    if app_name not in APPROVED_APPLICATIONS:
+        return (
+            f"I cannot open '{app_name}'. "
+            f"Only approved applications are currently available."
+        )
+
+    executable = APPROVED_APPLICATIONS[app_name]
+
+    try:
+        subprocess.Popen([executable])
+
+        return f"{app_name} was opened successfully."
+
+    except Exception as e:
+        return f"Unable to open {app_name}: {str(e)}"
+
+
+open_application_tool = {
+    "type": "function",
+    "name": "open_application",
+    "description": "Open an approved application on the user's Windows computer.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "app_name": {
+                "type": "string",
+                "description": "The name of the application to open."
+            }
+        },
+        "required": ["app_name"]
+    }
+}
+
+
+# ============================================================
+# AVAILABLE FUNCTIONS
+# ============================================================
+
+available_functions = {
+    "get_current_time": get_current_time,
+    "open_application": open_application
+}
+
+
+# ============================================================
+# AVAILABLE TOOLS
+# ============================================================
+
+available_tools = [
+    get_current_time_tool,
+    open_application_tool
+]
+
 
 # ============================================================
 # JARVIS SYSTEM INSTRUCTIONS
@@ -205,7 +272,7 @@ while True:
                 model="gemini-3.6-flash",
                 input=user_input,
                 system_instruction=JARVIS_INSTRUCTIONS,
-                tools=[get_current_time_tool]
+                tools=available_tools
             )
 
         else:
@@ -216,7 +283,7 @@ while True:
                 input=user_input,
                 previous_interaction_id=previous_interaction_id,
                 system_instruction=JARVIS_INSTRUCTIONS,
-                tools=[get_current_time_tool]
+                tools=available_tools
             )
 
         # ====================================================
@@ -269,7 +336,7 @@ while True:
                 input=function_results,
                 previous_interaction_id=interaction.id,
                 system_instruction=JARVIS_INSTRUCTIONS,
-                tools=[get_current_time_tool]
+                tools=available_tools
             )
 
         # Print final response
