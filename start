@@ -1,0 +1,3 @@
+cd "C:\Users\JEEVANANTHAM M\OneDrive\Desktop\JARVIS"
+.\venv\Scripts\Activate.ps1
+python main.py
