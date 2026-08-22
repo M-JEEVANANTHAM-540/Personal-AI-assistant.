@@ -664,8 +664,25 @@ while True:
             voice_mode = True
 
         if voice_mode:
+
+            command = input(
+                "\nPress ENTER to speak, type 'keyboard' "
+                "for keyboard mode, or 'exit' to quit: "
+            ).strip().lower()
+
+            if command == "exit":
+                print("JARVIS: Shutting down, sir.")
+                break
+
+            if command == "keyboard":
+                voice_mode = False
+                print("JARVIS: Keyboard mode enabled.")
+                continue
+
             user_input = listen()
+
         else:
+
             user_input = input("You: ")
 
 
